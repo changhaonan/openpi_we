@@ -1,0 +1,48 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Inference example",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/examples/inference_example.py",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Test convert",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/examples/world_engine/convert_mcap_data_to_lerobot.py",
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
+        {
+            "name": "Test train",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/train.py",
+            "args": [
+                "pi0_fast_libero",
+                "--exp-name=my_experiment",
+                "--overwrite"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
+        {
+            "name": "Test infer",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/serve_policy.py",
+            "args": [
+                "--env",
+                "ALOHA_SIM",
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
+    ]
+}
