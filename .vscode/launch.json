@@ -23,14 +23,15 @@
             "name": "Test train",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/scripts/train.py",
+            "program": "${workspaceFolder}/scripts/train_we.py",
             "args": [
-                "pi0_fast_libero",
-                "--exp-name=my_experiment",
                 "--overwrite"
             ],
             "console": "integratedTerminal",
-            "justMyCode": false
+            "justMyCode": false,
+            "env": {
+                "XLA_PYTHON_CLIENT_MEM_FRACTION": "0.9",
+            }
         },
         {
             "name": "Test infer",

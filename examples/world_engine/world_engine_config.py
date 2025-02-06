@@ -1,3 +1,4 @@
+import difflib
 from collections.abc import Sequence
 import dataclasses
 import pathlib
@@ -20,57 +21,73 @@ import examples.world_engine.world_engine_policy as world_engine_policy
 
 @dataclasses.dataclass(frozen=True)
 class LeRobotWEDataConfig(DataConfigFactory):
-    @override
-    def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
-        # Make inputs look like they come from the WE environment
-        repack_transform = _transforms.Group(
+    # If true, will convert joint dimensions to deltas with respect to the current state before passing to the model.
+    # Gripper dimensions will remain in absolute values.
+    use_delta_joint_actions: bool = True
+    # If provided, will be injected into the input data if the "prompt" key is not present.
+    default_prompt: str | None = "Place one plate on another."
+    # If true, this will convert the joint and gripper values from the standard Aloha space to
+    # the space used by the pi internal runtime which was used to train the base model. People who
+    # use standard Aloha data should set this to true.
+    adapt_to_pi: bool = True
+
+    # Repack transforms.
+    repack_transforms: _transforms.Group = dataclasses.field(
+        default=_transforms.Group(
             inputs=[
                 _transforms.RepackTransform(
                     {
-                        "observation/cam_high": "cam_high",
-                        "observation/cam_left_wrist": "cam_left_wrist",
-                        "observation/cam_right_wrist": "cam_right_wrist",
-                        "observation/state": "state",
-                        "actions": "actions",
-                        "prompt": "prompt",
+                        "images": {
+                            "cam_high": "observation.images.cam_high",
+                            "cam_left_wrist": "observation.images.cam_left_wrist",
+                            "cam_right_wrist": "observation.images.cam_right_wrist",
+                        },
+                        "state": "observation.state",
+                        "actions": "action",
                     }
                 )
             ]
         )
+    )
+    # Action keys that will be used to read the action sequence from the dataset.
+    action_sequence_keys: Sequence[str] = ("action",)
 
+    @override
+    def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
         # Prepare data for policy training
         # Convert images to uint8 numpy arrays, add masks
         data_transforms = _transforms.Group(
-            inputs=[world_engine_policy.PepperInputs(action_dim=model_config.action_dim, model_type=model_config.model_type)],
-            outputs=[world_engine_policy.PepperOutputs()],
+            inputs=[world_engine_policy.PepperInputs(action_dim=model_config.action_dim, adapt_to_pi=self.adapt_to_pi)],
+            outputs=[world_engine_policy.PepperOutputs(adapt_to_pi=self.adapt_to_pi)],
         )
-        # Use delta actions (not for gripper)
-        delta_action_mask = _transforms.make_bool_mask(6, -1)
-        data_transforms = data_transforms.push(
-            inputs=[_transforms.DeltaActions(delta_action_mask)],
-            outputs=[_transforms.AbsoluteActions(delta_action_mask)],
-        )
+        if self.use_delta_joint_actions:
+            delta_action_mask = _transforms.make_bool_mask(6, -1, 6, -1)
+            data_transforms = data_transforms.push(
+                inputs=[_transforms.DeltaActions(delta_action_mask)],
+                outputs=[_transforms.AbsoluteActions(delta_action_mask)],
+            )
 
-        # Model transforms include things like tokenizing the prompt and action targets
-        model_transforms = ModelTransformFactory()(model_config)
+        model_transforms = ModelTransformFactory(default_prompt=self.default_prompt)(model_config)
 
         return dataclasses.replace(
             self.create_base_config(assets_dirs),
-            repack_transforms=repack_transform,
+            repack_transforms=self.repack_transforms,
             data_transforms=data_transforms,
             model_transforms=model_transforms,
+            action_sequence_keys=self.action_sequence_keys,
         )
 
 
 #################################### Data classes ####################################
 _WE_CONFIGS = [
     TrainConfig(
-        name="pi0_peper_we",
+        name="pi0_plate_collect",
+        exp_name="plate_collect",
         model=pi0.Pi0Config(paligemma_variant="gemma_2b_lora", action_expert_variant="gemma_300m_lora"),
         data=LeRobotWEDataConfig(
             repo_id="changhaonan/world_engine_plate",
             base_config=DataConfig(
-                local_files_only=False,  # Set to True for local-only datasets.
+                local_files_only=True,  # Set to True for local-only datasets.
                 prompt_from_task=True,
             ),
         ),
@@ -80,3 +97,14 @@ _WE_CONFIGS = [
         ema_decay=None,
     )
 ]
+_WE_CONFIGS_DICT = {config.name: config for config in _WE_CONFIGS}
+
+
+def get_config(config_name: str) -> TrainConfig:
+    """Get a config by name."""
+    if config_name not in _WE_CONFIGS_DICT:
+        closest = difflib.get_close_matches(config_name, _WE_CONFIGS_DICT.keys(), n=1, cutoff=0.0)
+        closest_str = f" Did you mean '{closest[0]}'? " if closest else ""
+        raise ValueError(f"Config '{config_name}' not found.{closest_str}")
+
+    return _WE_CONFIGS_DICT[config_name]
