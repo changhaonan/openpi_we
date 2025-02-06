@@ -4,6 +4,7 @@ Script to convert World Engine's data (zarr) to the LeRobot dataset v2.0 format.
 Example usage: uv run examples/world_engine/convert_mcap_data_to_lerobot.py --raw-dir /mnt/scratch/datasets/ --repo-id changhaonan/world_engine_plate
 """
 
+import csv
 import os
 import dataclasses
 from pathlib import Path
@@ -247,11 +248,22 @@ def populate_dataset(
     dataset: LeRobotDataset,
     raw_dir: list[Path],
     task: str,
+    filter_file: str,
     episodes: list[int] | None = None,
 ) -> LeRobotDataset:
     # Parse all .cap files
-    dirs = os.listdir(raw_dir)
     mcap_files = []
+    # Read csv file
+    run_ids = []
+    with open(filter_file, mode="r", newline="", encoding="utf-8") as file:
+        csv_reader = csv.reader(file)
+        for row in csv_reader:
+            # Each row is a list of strings
+            run_ids.append(row[0])
+    if run_ids:
+        dirs = run_ids
+    else:
+        dirs = os.listdir(raw_dir)
     for d in dirs:
         if os.path.exists(os.path.join(raw_dir, d, f"{d}.mcap")):
             # read meta
@@ -261,7 +273,7 @@ def populate_dataset(
                 if config["task_type"] == "plate-collection":
                     mcap_files.append(os.path.join(raw_dir, d, f"{d}.mcap"))
     # # [Sanity check]: Use a small chunk for data checking.
-    mcap_files = mcap_files[:2]
+    # mcap_files = mcap_files[:2]
 
     if episodes is None:
         episodes = range(len(mcap_files))
@@ -291,6 +303,7 @@ def process_data(
     raw_dir: Path,
     repo_id: str,
     task: str,
+    filter_file: str = "",
     fps: int = 50,
     episodes: list[int] | None = None,
     push_to_hub: bool = True,
@@ -312,6 +325,7 @@ def process_data(
         dataset,
         raw_dir,
         task=task,
+        filter_file=filter_file,
         episodes=episodes,
     )
     dataset.consolidate()
@@ -324,5 +338,8 @@ if __name__ == "__main__":
     # tyro.cli(port_aloha)
     mode = "video"
     task = "plate_collection"
+    filter_file = "/home/dihuang/robotics/episode_folders.csv"  # Indicating the selection file
     fps = 50
-    process_data(raw_dir=Path("/mnt/scratch/datasets/"), repo_id="changhaonan/world_engine_plate", mode=mode, task=task, fps=fps)
+    process_data(
+        raw_dir=Path("/mnt/scratch/datasets/"), repo_id="changhaonan/world_engine_plate", mode=mode, task=task, filter_file=filter_file, fps=fps
+    )
