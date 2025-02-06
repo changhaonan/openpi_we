@@ -207,10 +207,11 @@ def load_raw_data_from_file(mcap_file: str, fps=50):
     right_camera_image = []
     # Read MCAP file
     robot_obs, robot_action, top_camera, left_camera, right_camera, sync_timestamps = read_mcap_file(mcap_file)
-
+    # Downsample fps
+    ds_sync_timestamps = downsample_synced_timestamps(sync_timestamps=sync_timestamps, sample_hz=fps)
     episode_length = 0
-    for key in sorted(sync_timestamps.keys()):
-        sync_ts = sync_timestamps[key]
+    for key in sorted(ds_sync_timestamps.keys()):
+        sync_ts = ds_sync_timestamps[key]
 
         if sync_ts["top_camera_timestamp"] is None or sync_ts["left_camera_timestamp"] is None or sync_ts["right_camera_timestamp"] is None:
             continue
@@ -259,7 +260,7 @@ def populate_dataset(
                 config = json.load(f)
                 if config["task_type"] == "plate-collection":
                     mcap_files.append(os.path.join(raw_dir, d, f"{d}.mcap"))
-    # [Sanity check]: Use a small chunk for data checking.
+    # # [Sanity check]: Use a small chunk for data checking.
     mcap_files = mcap_files[:2]
 
     if episodes is None:
@@ -301,7 +302,7 @@ def process_data(
 
     dataset = create_empty_dataset(
         repo_id,
-        robot_type="aloha2",
+        robot_type="pepper",
         mode=mode,
         dataset_config=dataset_config,
         fps=fps,
