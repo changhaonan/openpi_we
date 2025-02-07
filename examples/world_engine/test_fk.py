@@ -12,6 +12,7 @@ import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import openpi.training.sharding as sharding
+from scipy.spatial.transform import Rotation as R
 from examples.world_engine.world_engine_config import _WE_CONFIGS
 from examples.world_engine.diff_fk import ForwardKinematics
 
@@ -23,7 +24,12 @@ if __name__ == "__main__":
     fk_right = ForwardKinematics(urdf_path=urdf_file, base_link="base_link", ee_link="link6")
 
     # Test the forward kinematics
-    extrinsic_left = jnp.eye(4, dtype=jnp.float32)
+    trans = np.array([0.20875, -0.18675, 0.405])
+    r = R.from_euler("xyz", [0, -25, 0], degrees=True)
+    extrinsic_left = np.eye(4)
+    extrinsic_left[:3, :3] = r.as_matrix()
+    extrinsic_left[:3, 3] = trans
+    extrinsic_left = jnp.array(extrinsic_left, dtype=jnp.float32)
     extrinsic_right = jnp.eye(4, dtype=jnp.float32)
     # Intrinsic rescale
     old_w, old_h = 1280, 720
