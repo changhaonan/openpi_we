@@ -7,6 +7,7 @@ import sys
 import openpi.training.data_loader as _data_loader
 
 sys.path.append(".")
+import numpy as np
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
@@ -22,16 +23,20 @@ if __name__ == "__main__":
     fk_right = ForwardKinematics(urdf_path=urdf_file, base_link="base_link", ee_link="link6")
 
     # Test the forward kinematics
-    left_joint_positions = jnp.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]).reshape(1, -1)
-    right_joint_positions = jnp.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]).reshape(1, -1)
-    left_ee = fk_left.forward(x=left_joint_positions)
-    right_ee = fk_right.forward(x=right_joint_positions)
-
     extrinsic_left = jnp.eye(4, dtype=jnp.float32)
     extrinsic_right = jnp.eye(4, dtype=jnp.float32)
-    intrinsic_left = jnp.array([[455, 0, 320], [0, 455, 240], [0, 0, 1]])  # (3, 3)
-    intrinsic_right = jnp.array([[455, 0, 320], [0, 455, 240], [0, 0, 1]])  # (3, 3)
-
+    # Intrinsic rescale
+    old_w, old_h = 1280, 720
+    new_w, new_h = 224, 224
+    x_ratio = new_w / old_w
+    y_ratio = new_h / old_h
+    intrinsic_top = jnp.array(
+        [
+            [645.511596679688 * x_ratio, 0, 651.172546386719 * x_ratio],
+            [0, 644.690490722656 * y_ratio, 363.466522216797 * y_ratio],
+            [0, 0, 1],
+        ]
+    )  # (3, 3)
     # Create data loader
     config = _WE_CONFIGS[0]
 
@@ -54,28 +59,28 @@ if __name__ == "__main__":
     left_joint_positions = action[:, :, :6].reshape(-1, 6)
     right_joint_positions = action[:, :, 7:13].reshape(-1, 6)
     extrinsic_left = extrinsic_left.reshape(1, 4, 4).repeat(left_joint_positions.shape[0], axis=0)
-    intrinsic_left = intrinsic_left.reshape(1, 3, 3).repeat(left_joint_positions.shape[0], axis=0)
     extrinsic_right = extrinsic_right.reshape(1, 4, 4).repeat(right_joint_positions.shape[0], axis=0)
-    intrinsic_right = intrinsic_right.reshape(1, 3, 3).repeat(right_joint_positions.shape[0], axis=0)
+    intrinsic_top = intrinsic_top.reshape(1, 3, 3).repeat(left_joint_positions.shape[0], axis=0)
 
-    left_ee, left_proj = fk_left.forward(x=left_joint_positions, cam_ext=extrinsic_left, cam_int=intrinsic_left)
-    right_ee, right_proj = fk_right.forward(x=right_joint_positions, cam_ext=extrinsic_right, cam_int=intrinsic_right)
+    left_ee, left_proj = fk_left.forward(x=left_joint_positions, cam_ext=extrinsic_left, cam_int=intrinsic_top)
+    right_ee, right_proj = fk_right.forward(x=right_joint_positions, cam_ext=extrinsic_right, cam_int=intrinsic_top)
 
     # Reshape the output
     base_0_rgb = jax.device_get(base_0_rgb)
-    H, W = base_0_rgb.shape[:2]
-    left_proj = jax.device_get(left_proj.reshape(B, -1, 2))
-    left_proj[:, :, 0] = left_proj[:, :, 0] / W
-    left_proj[:, :, 1] = left_proj[:, :, 1] / H
-    right_proj = jax.device_get(right_proj.reshape(B, -1, 2))
-    right_proj[:, :, 0] = right_proj[:, :, 0] / W
-    right_proj[:, :, 1] = right_proj[:, :, 1] / H
+    base_0_rgb = (base_0_rgb + 1.0) / 2.0
+    H, W = base_0_rgb.shape[1:3]
+    left_proj = np.copy(jax.device_get(left_proj.reshape(B, -1, 2)))
+    left_proj[:, :, 0] = np.clip(left_proj[:, :, 0] / W, a_min=0, a_max=1)
+    left_proj[:, :, 1] = np.clip(left_proj[:, :, 1] / H, a_min=0, a_max=1)
+    right_proj = np.copy(jax.device_get(right_proj.reshape(B, -1, 2)))
+    right_proj[:, :, 0] = np.clip(right_proj[:, :, 0] / W, a_min=0, a_max=1)
+    right_proj[:, :, 1] = np.clip(right_proj[:, :, 1] / H, a_min=0, a_max=1)
     # Visualize the output by plotting the trajectories on the image
     fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-    ax[0].imshow(base_0_rgb)
-    ax[1].imshow(base_0_rgb)
-    for i in range(B):
-        ax[0].plot(left_proj[i, :, 0], left_proj[i, :, 1], "r-")
-        ax[1].plot(right_proj[i, :, 0], right_proj[i, :, 1], "r-")
+    b_idx = 0
+    ax[0].imshow(base_0_rgb[b_idx])
+    ax[1].imshow(base_0_rgb[b_idx])
+    ax[0].plot(left_proj[b_idx, :, 0], left_proj[b_idx, :, 1], "r-")
+    ax[1].plot(right_proj[b_idx, :, 0], right_proj[b_idx, :, 1], "r-")
     plt.savefig("./output.png")
     fig.clear()

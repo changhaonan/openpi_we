@@ -15,9 +15,9 @@ def make_we_example() -> dict:
     return {
         "state": np.ones((14,)),
         "images": {
-            "cam_high": np.random.randint(256, size=(3, 240, 320), dtype=np.uint8),
-            "cam_left_wrist": np.random.randint(256, size=(3, 240, 320), dtype=np.uint8),
-            "cam_right_wrist": np.random.randint(256, size=(3, 240, 320), dtype=np.uint8),
+            "cam_high": np.random.randint(256, size=(3, 224, 224), dtype=np.uint8),
+            "cam_left_wrist": np.random.randint(256, size=(3, 224, 224), dtype=np.uint8),
+            "cam_right_wrist": np.random.randint(256, size=(3, 224, 224), dtype=np.uint8),
         },
         "prompt": "do something",
     }
