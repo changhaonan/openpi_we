@@ -20,6 +20,7 @@ if __name__ == "__main__":
     urdf_file = f"{root_dir}/piper_description/urdf/piper_description_v00.urdf"
     fk_left = ForwardKinematics(urdf_path=urdf_file, base_link="base_link", ee_link="link6")
     fk_right = ForwardKinematics(urdf_path=urdf_file, base_link="base_link", ee_link="link6")
+
     # Test the forward kinematics
     left_joint_positions = jnp.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]).reshape(1, -1)
     right_joint_positions = jnp.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]).reshape(1, -1)
