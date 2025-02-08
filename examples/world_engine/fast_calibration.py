@@ -281,9 +281,20 @@ def calibrate_camera_to_base(all_T_cam_tag, all_T_base_tag, initial_params=None)
 # ===========================================
 if __name__ == "__main__":
     hand = "right"  # "left" or "right"
+    # hand = "left"  # "left" or "right"
     # Configuration (update these values)
     root_dir = os.path.dirname(os.path.abspath(__file__))
-    mcap_file = f"{root_dir}/../../test_data/20250207_184745_761519.mcap"
+    map_cap_file_dict = {
+        "left": f"{root_dir}/../../test_data/20250208_125012_802285.mcap",
+        "right": f"{root_dir}/../../test_data/20250207_184745_761519.mcap",
+    }
+    if hand == "right":
+        start_idx = 2000
+        max_num = 1000
+    else:
+        start_idx = 500
+        max_num = 1000
+    mcap_file = map_cap_file_dict[hand]
     urdf_file = f"{root_dir}/piper_description/urdf/piper_description.urdf"
     urdf = URDF.load(urdf_file)
     tag_size = 0.1828  # Physical size of the AprilTag in meters
@@ -293,12 +304,23 @@ if __name__ == "__main__":
     )  # Distortion coefficients
 
     # Load T_base_tag poses (replace with your known poses)
-    T_tag_to_link6 = np.eye(4)  # Measured
-    T_tag_to_link6[:3, 3] = np.array([0, 0, (93.4 + 91.4 + 69.2) / 1000.0])
-    T_tag_to_link6[:3, :3] = R.from_euler("XYZ", [90, 180, 0], degrees=True).as_matrix()
+    if hand == "right":
+        init_cam2base = np.eye(4)  # camera to base
+        init_cam2base[:3, 3] = np.array([0.530225, 0.474345, 1.0287])
+        init_cam2base[:3, :3] = R.from_euler("XYZ", [155, 0, 180], degrees=True).as_matrix()
+        T_tag_to_link6 = np.eye(4)  # Measured
+        T_tag_to_link6[:3, 3] = np.array([0, 0, (93.4 + 91.4 + 69.2) / 1000.0])
+        T_tag_to_link6[:3, :3] = R.from_euler("XYZ", [90, 180, 0], degrees=True).as_matrix()
+    else:
+        init_cam2base = np.eye(4)  # camera to base
+        init_cam2base[:3, 3] = np.array([0.530225, -0.474345, 1.0287])
+        init_cam2base[:3, :3] = R.from_euler("XYZ", [-155, 0, 0], degrees=True).as_matrix()
+        T_tag_to_link6 = np.eye(4)  # Measured
+        T_tag_to_link6[:3, 3] = np.array([0, 0, (93.4 + 91.4 + 69.2) / 1000.0])
+        T_tag_to_link6[:3, :3] = R.from_euler("XYZ", [90, 0, 0], degrees=True).as_matrix()
 
     joint_position, ee_poses, action, top_camera_image, left_camera_image, right_camera_image = load_raw_data_from_file(
-        mcap_file, fps=50, max_num=500, start_idx=2500, resize=False
+        mcap_file, fps=50, max_num=max_num, start_idx=start_idx, resize=False
     )
     offset = 0 if hand == "left" else 7
     # [DEBUG]: plot joint positions
@@ -340,9 +362,6 @@ if __name__ == "__main__":
     all_T_tag2cam, valid_indices = detect_T_cam_tag(frames, tag_size, mtx, dist, debug=True)
     filtered_T_tag_to_bases = [T_tag_to_bases[i] for i in valid_indices]
 
-    init_cam2base = np.eye(4)  # camera to base
-    init_cam2base[:3, 3] = np.array([0.530225, 0.474345, 1.0287])
-    init_cam2base[:3, :3] = R.from_euler("XYZ", [155, 0, 180], degrees=True).as_matrix()
     # [DEBUG]: Visualize the detected poses
     vis = []
     for i, T_tag2cam in enumerate(all_T_tag2cam):
@@ -358,12 +377,11 @@ if __name__ == "__main__":
         tag_pose.transform(T_tag_to_base)
         vis.append(tag_pose)
     vis.append(o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1))
-    vis.append(o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.03))
     o3d.visualization.draw_geometries(vis)
     # Run calibration
     T_cam2base = calibrate_camera_to_base(all_T_tag2cam, filtered_T_tag_to_bases, initial_params=transform_to_params(init_cam2base))
-    print("Calibrated T_cam_base:\n", T_cam2base)
-    np.save("./debug/T_cam_base.npy", T_cam2base)
+    print(f"Calibrated T_cam_base for {hand}", T_cam2base)
+    np.save(f"./debug/T_cam_base_{hand}.npy", T_cam2base)
 
     # [DEBUG]: Visualize the detected poses
     vis = []
@@ -384,13 +402,13 @@ if __name__ == "__main__":
     o3d.visualization.draw_geometries(vis)
 
     # [DEBUG]: Visualize the calibration by projecting the base frame to the camera & robot actions
-    # points_3d = np.matmul(np.linalg.inv(T_cam_base)[None, ...], T_link6_to_bases)[:, :3, 3]
-    points_3d = np.linalg.inv(T_cam2base)[:3, 3].reshape(-1, 3)
+    points_3d = np.matmul(np.linalg.inv(T_cam2base)[None, ...], T_link6_to_bases)[:, :3, 3]
+    points_3d = np.concatenate([np.linalg.inv(T_cam2base)[:3, 3].reshape(-1, 3), points_3d], axis=0)
     # Project 3D points to the image plane
     imgpts, _ = cv2.projectPoints(points_3d, np.zeros(3), np.zeros(3), mtx, dist)
     imgpts = np.int32(imgpts).reshape(-1, 2)
-    origin = tuple(imgpts[0])
     # Draw trajectories
-    for i in range(1, len(imgpts)):
-        cv2.line(frames[0], imgpts[i - 1], tuple(imgpts[i]), (0, 0, 255), 3)
-    cv2.imwrite(f"./debug/frame_base.png", frames[0])
+    for i in range(1, len(imgpts) - 1):
+        cv2.circle(frames[i], tuple(imgpts[0]), 10, (0, 0, 255), -1)
+        cv2.circle(frames[i], tuple(imgpts[i - 1]), 3, (0, 255, 0), -1)
+        cv2.imwrite(f"./debug/cali_frame_{i}_{hand}.png", frames[i])
