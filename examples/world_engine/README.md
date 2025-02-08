@@ -60,3 +60,16 @@ Intrinsic of "Color" / 1280x720 / {YUYV/RGB8/BGR8/RGBA8/BGRA8/Y8}
   Distortion: 	Inverse Brown Conrady
   Coeffs:     	-0.0516580604016781  	0.0572841465473175  	1.91315448319074e-05  	0.00131414690986276  	-0.0189359113574028  
   FOV (deg):  	88.9 x 57.85
+
+2. We-02:
+2.1. Top:
+Intrinsic of "Color" / 1280x720 / {YUYV/RGB8/BGR8/RGBA8/BGRA8/Y8}
+  Width:      	1280
+  Height:     	720
+  PPX:        	645.988403320312
+  PPY:        	362.89111328125
+  Fx:         	653.672790527344
+  Fy:         	652.861572265625
+  Distortion: 	Inverse Brown Conrady
+  Coeffs:     	-0.0537487268447876  	0.0605481714010239  	-5.2034647524124e-05  	0.00103097432292998  	-0.020617974922061  
+  FOV (deg):  	88.79 x 57.75

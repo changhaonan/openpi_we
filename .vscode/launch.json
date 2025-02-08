@@ -45,5 +45,13 @@
             "console": "integratedTerminal",
             "justMyCode": false
         },
+        {
+            "name": "Calibration",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/examples/world_engine/fast_calibration.py",
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
     ]
 }

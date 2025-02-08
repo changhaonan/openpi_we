@@ -171,3 +171,5 @@ cython_debug/
 data/*
 output.png
 *.mp4
+debug/*
+test_data/*

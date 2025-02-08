@@ -188,17 +188,18 @@ def read_mcap_file(file_path):
     return robot_obs, robot_action, top_camera, left_camera, right_camera, sync_timestamps
 
 
-def resize_image(img_str):
+def resize_image(img_str, resize=True):
     img_bytes = bytes.fromhex(img_str)
     img_np = np.frombuffer(img_bytes, dtype=np.uint8)
     img = cv2.imdecode(img_np, cv2.IMREAD_COLOR)
-    img = cv2.resize(img, (320, 240))
+    if resize:
+        img = cv2.resize(img, (320, 240))
     # Convert rgb to bgr
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     return img
 
 
-def load_raw_data_from_file(mcap_file: str, fps=50):
+def load_raw_data_from_file(mcap_file: str, fps=50, start_idx=0, max_num=None, resize=True):
     """Load the raw data from cap with a given fps."""
     joint_position = []
     ee_poses = []
@@ -211,7 +212,12 @@ def load_raw_data_from_file(mcap_file: str, fps=50):
     # Downsample fps
     ds_sync_timestamps = downsample_synced_timestamps(sync_timestamps=sync_timestamps, sample_hz=fps)
     episode_length = 0
-    for key in sorted(ds_sync_timestamps.keys()):
+    for idx, key in enumerate(sorted(ds_sync_timestamps.keys())):
+        print(f"Processing frame {idx} / {len(ds_sync_timestamps)}")
+        if idx < start_idx:
+            continue
+        if max_num is not None and idx >= (start_idx + max_num):
+            break
         sync_ts = ds_sync_timestamps[key]
 
         if sync_ts["top_camera_timestamp"] is None or sync_ts["left_camera_timestamp"] is None or sync_ts["right_camera_timestamp"] is None:
@@ -230,9 +236,9 @@ def load_raw_data_from_file(mcap_file: str, fps=50):
         joint_position.append(np.array(joint_pos).reshape(1, -1))
         ee_poses.append(np.array(ee_pos).reshape(1, -1))
         action.append(np.array(action_dt).reshape(1, -1))
-        top_camera_image.append(resize_image(top_cam_img))
-        left_camera_image.append(resize_image(left_cam_img))
-        right_camera_image.append(resize_image(right_cam_img))
+        top_camera_image.append(resize_image(top_cam_img, resize=resize))
+        left_camera_image.append(resize_image(left_cam_img, resize=resize))
+        right_camera_image.append(resize_image(right_cam_img, resize=resize))
 
     # [DEBUG]
     joint_position = np.concat(joint_position, axis=0)
