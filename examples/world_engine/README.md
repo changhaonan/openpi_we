@@ -19,6 +19,11 @@ uv run scripts/compute_norm_stats_we.py --config-name pi0_plate_collect
 XLA_PYTHON_CLIENT_MEM_FRACTION=0.9 uv run scripts/train_we.py
 ```
 
+## NATS address
+```
+/mnt/scratch/datasets/
+```
+
 ## Intrinsic information
 
 1. We-01:
