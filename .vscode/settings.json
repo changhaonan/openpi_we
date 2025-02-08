@@ -7,5 +7,6 @@
         "src"
     ],
     "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+    "python.testing.pytestEnabled": true,
+    "cmake.sourceDirectory": "/Users/haonanchang/Projects/openpi_we/examples/world_engine/piper_description"
 }
