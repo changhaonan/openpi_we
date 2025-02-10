@@ -2765,6 +2765,7 @@ dependencies = [
     { name = "openpi-client" },
     { name = "orbax-checkpoint" },
     { name = "pillow" },
+    { name = "pyrealsense2" },
     { name = "s3fs" },
     { name = "sentencepiece" },
     { name = "torch" },
@@ -2775,6 +2776,7 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "tyro" },
     { name = "wandb" },
+    { name = "zmq" },
 ]
 
 [package.dev-dependencies]
@@ -2806,12 +2808,13 @@ requires-dist = [
     { name = "jaxtyping", specifier = "==0.2.36" },
     { name = "lerobot", git = "https://github.com/huggingface/lerobot?rev=6674e368249472c91382eb54bb8501c94c7f0c56" },
     { name = "ml-collections", specifier = "==1.0.0" },
-    { name = "numpy", specifier = ">=1.26.4" },
+    { name = "numpy", specifier = ">=1.24.0" },
     { name = "numpydantic", specifier = ">=1.6.6" },
-    { name = "opencv-python", specifier = ">=4.10.0.84" },
+    { name = "opencv-python", specifier = ">=4.8.0" },
     { name = "openpi-client", editable = "packages/openpi-client" },
     { name = "orbax-checkpoint", specifier = "==0.11.1" },
     { name = "pillow", specifier = ">=11.0.0" },
+    { name = "pyrealsense2", specifier = ">=2.54.1" },
     { name = "s3fs", specifier = ">=2024.9.0" },
     { name = "sentencepiece", specifier = ">=0.2.0" },
     { name = "torch", specifier = ">=2.5.1" },
@@ -2822,6 +2825,7 @@ requires-dist = [
     { name = "typing-extensions", specifier = ">=4.12.2" },
     { name = "tyro", specifier = ">=0.9.5" },
     { name = "wandb", specifier = ">=0.19.1" },
+    { name = "zmq", specifier = ">=0.0.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -3445,6 +3449,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/8c/d5/e5aeee5387091148a19e1145f63606619cb5f20b83fccb63efae6474e7b2/pyparsing-3.2.0.tar.gz", hash = "sha256:cbf74e27246d595d9a74b186b810f6fbb86726dbf3b9532efb343f6d7294fe9c", size = 920984 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/be/ec/2eb3cd785efd67806c46c13a17339708ddc346cbb684eade7a6e6f79536a/pyparsing-3.2.0-py3-none-any.whl", hash = "sha256:93d9577b88da0bbea8cc8334ee8b918ed014968fd2ec383e868fb8afb1ccef84", size = 106921 },
+]
+
+[[package]]
+name = "pyrealsense2"
+version = "2.55.1.6486"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1e/8b/208170a2bd1c7899b01f57ac4bd1d67436735056f77b7941cb133621c4dc/pyrealsense2-2.55.1.6486-cp311-cp311-manylinux1_x86_64.whl", hash = "sha256:178f92caec6e8e212a7ced66c678dec47462b0b77e929fa576d02eea297bb177", size = 3453751 },
+    { url = "https://files.pythonhosted.org/packages/43/0a/f30f3030b59feadbb62b1400475516e800b934623bbbb8092feb0bb2335d/pyrealsense2-2.55.1.6486-cp311-cp311-win_amd64.whl", hash = "sha256:e01939a63bac3e1a4da742f7e1dbc618a4ec03ee0f7b3690ae5d1ad0c983aca8", size = 2781943 },
 ]
 
 [[package]]
@@ -4753,3 +4766,12 @@ sdist = { url = "https://files.pythonhosted.org/packages/3f/50/bad581df71744867e
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b7/1a/7e4798e9339adc931158c9d69ecc34f5e6791489d469f5e50ec15e35f458/zipp-3.21.0-py3-none-any.whl", hash = "sha256:ac1bbe05fd2991f160ebce24ffbac5f6d11d83dc90891255885223d42b3cd931", size = 9630 },
 ]
+
+[[package]]
+name = "zmq"
+version = "0.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyzmq" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6e/78/833b2808793c1619835edb1a4e17a023d5d625f4f97ff25ffff986d1f472/zmq-0.0.0.tar.gz", hash = "sha256:6b1a1de53338646e8c8405803cffb659e8eb7bb02fff4c9be62a7acfac8370c9", size = 966 }
