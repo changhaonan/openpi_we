@@ -1,4 +1,4 @@
-"""Functions to testing the performance of the forward kinematics."""
+"""Visualization tools."""
 
 import os
 import cv2
@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from urchin import URDF
 
 import openpi.training.data_loader as _data_loader
+import openpi.transforms as _transforms
 import sys
 
 sys.path.append(".")
@@ -63,7 +64,7 @@ def visualize_action(joint_positions, top_camera_image, urdf_file, left_cam2base
     ax.plot(left_proj_left[:, 0], left_proj_left[:, 1], "rx", label="Left trajectory", markersize=8)
     ax.plot(left_proj_right[:, 0], left_proj_right[:, 1], "bx", label="Right trajectory", markersize=8)
     ax.legend()
-    plt.savefig(f"./{image_name}.png") if image_name else plt.savefig("./output.png")
+    plt.savefig(f"./debug/{image_name}.png") if image_name else plt.savefig("./debug/output.png")
     fig.clear()
 
 
@@ -73,6 +74,16 @@ def test_fk_from_mcap(urdf_file, mcap_file, left_cam2base, right_cam2base, mtx, 
         mcap_file, fps=50, max_num=None, start_idx=0, resize=False
     )
     visualize_action(joint_position, top_camera_image[0], urdf_file, left_cam2base, right_cam2base, mtx, dist)
+
+
+def output_transform(data_config, norm_stats, repack_transforms: _transforms.Group):
+    output_transforms = [
+        *data_config.model_transforms.outputs,
+        _transforms.Unnormalize(norm_stats=norm_stats, use_quantiles=data_config.use_quantile_norm),
+        *data_config.data_transforms.outputs,
+        *repack_transforms.outputs,
+    ]
+    return _transforms.CompositeTransform(output_transforms)
 
 
 if __name__ == "__main__":
@@ -90,6 +101,10 @@ if __name__ == "__main__":
             ),  # Distortion coefficients
         }
     }
+    left_cam2base = we_cam_dict[we_name]["left_cam2base"]
+    right_cam2base = we_cam_dict[we_name]["right_cam2base"]
+    mtx = we_cam_dict[we_name]["mtx"]
+    dist = we_cam_dict[we_name]["dist"]
 
     ##### Test fk using raw mcap flie ####
     # # mcap_file = f"{root_dir}/test_data/20250205_194514_694214.mcap"
@@ -104,7 +119,10 @@ if __name__ == "__main__":
     # )
     ##### Test fk using data-loader ####
     config = _WE_CONFIGS[0]
-
+    # Dataset obj
+    data_config = config.data.create(config.assets_dirs, config.model)
+    dataset = _data_loader.create_dataset(data_config, config.model)
+    # Data loader
     mesh = sharding.make_mesh(config.fsdp_devices)
     data_sharding = jax.sharding.NamedSharding(mesh, jax.sharding.PartitionSpec(sharding.DATA_AXIS))
     data_loader = _data_loader.create_data_loader(
@@ -116,10 +134,8 @@ if __name__ == "__main__":
     data_iter = iter(data_loader)
     batch = next(data_iter)
     # # Extract data
-    batch_idx = 11
+    batch_idx = 8
     base_0_rgb = batch[0].images["base_0_rgb"][batch_idx]
-    state = batch[0].state[:, :14][batch_idx]
-    action = batch[1][:, :, :14][batch_idx]
     base_0_rgb = jax.device_get(base_0_rgb)
     base_0_rgb = ((base_0_rgb + 1.0) / 2.0) * 255.0
     base_0_rgb = base_0_rgb.astype(np.uint8)
@@ -127,31 +143,38 @@ if __name__ == "__main__":
     H, W = base_0_rgb.shape[1:3]
     # [DEBUG]
     cv2.imwrite("./base_0_rgb.png", base_0_rgb)
-    left_cam2base = we_cam_dict[we_name]["left_cam2base"]
-    right_cam2base = we_cam_dict[we_name]["right_cam2base"]
-    mtx = we_cam_dict[we_name]["mtx"]
-    dist = we_cam_dict[we_name]["dist"]
     # Recover the base_0_rgb to the original size
     base_0_rgb = cv2.resize(base_0_rgb[28:-28, :, :], (1280, 720))
-    # Visualize the state
-    state_pepper = PepperOutputs()({"actions": state[None, ...]})
-    visualize_action(state_pepper["actions"], base_0_rgb, urdf_file, left_cam2base, right_cam2base, mtx, dist, image_name="base_0_rgb_state")
+    # # Visualize the state
+    # state_pepper = PepperOutputs()({"actions": state[None, ...]})
+    # visualize_action(state_pepper["actions"], base_0_rgb, urdf_file, left_cam2base, right_cam2base, mtx, dist, image_name="base_0_rgb_state")
     # Visualize the action
-    action_pepper = PepperOutputs()({"actions": action})
+    # action_pepper = PepperOutputs()({"actions": action})
+    action_norm_stats = {
+        "actions": data_config.norm_stats["actions"],
+        "state": data_config.norm_stats["state"],
+    }
+    actions = np.copy(jax.device_get(batch[1]))
+    state = np.copy(jax.device_get(batch[0].state))
+    action_pepper = output_transform(data_config=data_config, norm_stats=action_norm_stats, repack_transforms=data_config.repack_transforms)(
+        {"actions": actions[batch_idx], "state": state[batch_idx]}
+    )
     visualize_action(action_pepper["actions"], base_0_rgb, urdf_file, left_cam2base, right_cam2base, mtx, dist, image_name="base_0_rgb_action")
 
-    ##### Test fk using data-set ####
-    data_config = config.data.create(config.assets_dirs, config.model)
-
-    dataset = _data_loader.create_dataset(data_config, config.model)
-    data = dataset[0]
-    # Extract the data
-    base_0_rgb = data.images["base_0_rgb"]
-    state = data.state[:, :14]
-    action = data.actions[:, :, :14]
-    # Recover the base_0_rgb to the original size
-    base_0_rgb = cv2.resize(base_0_rgb[28:-28, :, :], (1280, 720))
-    # Visualize the state
-    visualize_action(state[None, ...], base_0_rgb, urdf_file, left_cam2base, right_cam2base, mtx, dist, image_name="base_0_rgb_state")
-    # Visualize the action
-    visualize_action(action, base_0_rgb, urdf_file, left_cam2base, right_cam2base, mtx, dist, image_name="base_0_rgb_action")
+    # ##### Test fk using dataset ####
+    # data_config = config.data.create(config.assets_dirs, config.model)
+    # dataset = _data_loader.create_dataset(data_config, config.model)
+    # # Sample 10 data from the dataset
+    # sample_idx = np.random.randint(0, len(dataset), 10)
+    # for i in sample_idx:
+    #     data = dataset[int(i)]
+    #     # Extract the data
+    #     base_0_rgb = data["observation.images.cam_high"].cpu().numpy().transpose(1, 2, 0)
+    #     base_0_rgb = (base_0_rgb * 255.0).astype(np.uint8)
+    #     base_0_rgb = cv2.resize(base_0_rgb, (1280, 720))
+    #     state = data["observation.state"][:14]
+    #     action = data["action"][:, :14]
+    #     # Visualize the state
+    #     visualize_action(state[None, ...], base_0_rgb, urdf_file, left_cam2base, right_cam2base, mtx, dist, image_name=f"base_0_rgb_state_{i}")
+    #     # Visualize the action
+    #     visualize_action(action, base_0_rgb, urdf_file, left_cam2base, right_cam2base, mtx, dist, image_name=f"base_0_rgb_action_{i}")
